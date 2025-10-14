@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -11,14 +13,26 @@ services:
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_CLUSTER_ID: 'Yn0vKRaftCluster01'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
-      KAFKA_LOG_DIRS: /tmp/kraft-combined-logs
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+    command:
+      - bash
+      - -c
+      - |
+        # Formate le stockage si nécessaire, puis démarre Kafka
+        if [ ! -f /var/lib/kafka/data/meta.properties ]; then
+          echo "==> Initialisation du cluster KRaft..."
+          CLUSTER_ID=$$(kafka-storage random-uuid)
+          kafka-storage format --ignore-formatted --cluster-id $$CLUSTER_ID --config /etc/kafka/kafka.properties
+        fi
+        echo "==> Lancement de Kafka..."
+        exec /etc/confluent/docker/run
     volumes:
-      - kafka_data:/var/lib/kafka/data
+      - ./docker/kafka-data:/var/lib/kafka/data
 
   postgres:
     image: postgres:15
@@ -41,8 +55,8 @@ services:
       - kafka
       - postgres
     volumes:
-      - ./producer:/app/producer
-      - ./consumer:/app/consumer
+      - "C:/Users/Hp/data-pipeline-mvp-Hamid-Stephanie-Assa/producer:/app/producer"
+      - "C:/Users/Hp/data-pipeline-mvp-Hamid-Stephanie-Assa/consumer:/app/consumer"
     environment:
       - KAFKA_BROKER=kafka:9092
       - POSTGRES_HOST=postgres
