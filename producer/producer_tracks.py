@@ -1,0 +1,63 @@
+import csv
+import json
+import time
+from kafka import KafkaProducer
+import os
+
+# 1. Configuration des paramètres
+
+# Adresse du broker Kafka (utilise le nom de service Docker)
+KAFKA_BROKER = 'kafka:9092' 
+
+# Topic pour les données brutes des titres
+TOPIC_NAME = 'deezer_tracks_raw'
+# Nom du fichier CSV
+FILE_PATH = '/app/tracks.csv' 
+
+# 2. Initialisation du Producteur
+try:
+    producer = KafkaProducer(
+        bootstrap_servers=[KAFKA_BROKER],
+        # Fonction de sérialisation JSON
+        value_serializer=lambda v: json.dumps(v).encode('utf-8') 
+    )
+    print(f"Producteur de titres connecté à Kafka sur {KAFKA_BROKER}")
+
+except Exception as e:
+    # Cette erreur ne devrait plus se produire si Kafka est stable
+    print(f"ERREUR DE CONNEXION À KAFKA : {e}")
+    exit(1)  # Quitte si la connexion échoue
+
+
+# 3. Lecture du fichier CSV et envoi des messages
+if not os.path.exists(FILE_PATH):
+    print(f"ERREUR : Le fichier {FILE_PATH} est introuvable. Assurez-vous qu'il est dans le répertoire de l'application.")
+else:
+    print(f"Lecture du fichier {FILE_PATH} et envoi au topic {TOPIC_NAME}...")
+
+    with open(FILE_PATH, mode='r', encoding='utf-8') as csvfile:
+        reader = csv.DictReader(csvfile)
+        
+        for row in reader:
+            data_json = row
+            
+            # Utilise le track_id comme clé pour le partitionnement
+            track_id = data_json.get('track_id')
+            key = str(track_id).encode('utf-8') 
+            
+            # Envoi asynchrone du message
+            future = producer.send(TOPIC_NAME, key=key, value=data_json)
+            
+            try:
+                record_metadata = future.get(timeout=10)
+                print(f"Envoyé Titre ID {track_id} à la partition {record_metadata.partition}")
+                
+            except Exception as e:
+                print(f"Échec de l'envoi pour le titre {track_id}: {e}")
+                
+            # Simule un flux continu (un message toutes les 0.1 seconde)
+            time.sleep(0.1)
+
+# Fermer la connexion du producteur
+producer.close()
+print("Producteur de titres terminé.")

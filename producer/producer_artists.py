@@ -11,7 +11,7 @@ KAFKA_BROKER = 'kafka:9092'
 # Topic pour les données brutes des artistes
 TOPIC_NAME = 'deezer_artists_raw'
 # Nom du fichier CSV
-FILE_PATH = './artists.csv' 
+FILE_PATH = '/app/artists.csv' 
 
 # 2. Initialisation du Producteur
 try:
@@ -24,7 +24,7 @@ try:
 
 except Exception as e:
     print(f"ERREUR DE CONNEXION À KAFKA : {e}")
-    # Si Kafka est HS, l'erreur est normale pour l'instant.
+    exit(1)  # Quitte si la connexion échoue
 
 # 3. Lecture du fichier CSV et envoi des messages
 print(f"Lecture du fichier {FILE_PATH} et envoi au topic {TOPIC_NAME}...")
