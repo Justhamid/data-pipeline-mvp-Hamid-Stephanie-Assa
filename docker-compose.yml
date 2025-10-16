@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -9,7 +7,7 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
@@ -55,8 +53,8 @@ services:
       - kafka
       - postgres
     volumes:
-      - "C:/Users/Hp/data-pipeline-mvp-Hamid-Stephanie-Assa/producer:/app/producer"
-      - "C:/Users/Hp/data-pipeline-mvp-Hamid-Stephanie-Assa/consumer:/app/consumer"
+      - "./producer:/app/producer"
+      - "./consumer:/app/consumer"
     environment:
       - KAFKA_BROKER=kafka:9092
       - POSTGRES_HOST=postgres

@@ -1,12 +1,25 @@
 from kafka import KafkaConsumer
 import json
 
+# ---------------------------
+# CONFIG KAFKA
+# ---------------------------
+KAFKA_SERVER = "kafka:9092"
+TOPICS = ["artists", "albums", "tracks"]
+
 consumer = KafkaConsumer(
-    'deezer_tracks',
-    bootstrap_servers='kafka:9092',
-    value_deserializer=lambda v: json.loads(v.decode('utf-8'))
+    *TOPICS,
+    bootstrap_servers=KAFKA_SERVER,
+    auto_offset_reset='earliest',  # lire depuis le début
+    group_id='debug_consumer',
+    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
-print("🎧 En attente de messages...")
+print("👀 En attente des messages sur les topics :", TOPICS)
+
 for message in consumer:
-    print("📩 Reçu:", message.value)
+    topic = message.topic
+    data = message.value
+    print(f"\n📌 Topic: {topic}")
+    for k, v in data.items():
+        print(f"  {k}: {v}")
