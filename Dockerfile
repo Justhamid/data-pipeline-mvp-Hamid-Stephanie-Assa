@@ -9,7 +9,7 @@ COPY ./producer /app/producer
 COPY ./consumer /app/consumer
 
 # Installe les dépendances nécessaires pour Kafka, PostgreSQL et variables d'environnement
-RUN pip install kafka-python psycopg2-binary python-dotenv
+RUN pip install kafka-python psycopg2-binary python-dotenv requests
 
 # Garde le conteneur actif (à modifier plus tard quand on exécutera ton producer/consumer)
 CMD ["tail", "-f", "/dev/null"]
