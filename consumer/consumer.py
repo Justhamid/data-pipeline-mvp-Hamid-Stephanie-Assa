@@ -1,20 +1,25 @@
 from kafka import KafkaConsumer
 import json
 
-# Configuration Kafka
-KAFKA_TOPIC = "artists"
-KAFKA_SERVER = "kafka:9092"  # parce qu'on est dans le container app
+# ---------------------------
+# CONFIG KAFKA
+# ---------------------------
+KAFKA_SERVER = "kafka:9092"
+TOPICS = ["artists", "albums", "tracks"]
 
-# Initialisation du consumer
 consumer = KafkaConsumer(
-    KAFKA_TOPIC,
+    *TOPICS,
     bootstrap_servers=KAFKA_SERVER,
-    auto_offset_reset='earliest',  # lire depuis le début du topic
-    group_id='consumer-test',
+    auto_offset_reset='earliest',  # lire depuis le début
+    group_id='debug_consumer',
     value_deserializer=lambda m: json.loads(m.decode('utf-8'))
 )
 
-print(f"En attente des messages sur le topic '{KAFKA_TOPIC}'…")
+print("👀 En attente des messages sur les topics :", TOPICS)
 
 for message in consumer:
-    print("Reçu :", message.value)
+    topic = message.topic
+    data = message.value
+    print(f"\n📌 Topic: {topic}")
+    for k, v in data.items():
+        print(f"  {k}: {v}")
