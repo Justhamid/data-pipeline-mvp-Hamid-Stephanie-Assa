@@ -5,6 +5,7 @@ services:
     ports:
       - "9092:9092"
     environment:
+      KAFKA_CLUSTER_ID: "0e3f5a1a-8b7c-4d21-bb1f-9c8e2f7c9aef"
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
@@ -21,14 +22,11 @@ services:
       - bash
       - -c
       - |
-        # Formate le stockage si nécessaire, puis démarre Kafka
-        if [ ! -f /var/lib/kafka/data/meta.properties ]; then
-          echo "==> Initialisation du cluster KRaft..."
-          CLUSTER_ID=$$(kafka-storage random-uuid)
-          kafka-storage format --ignore-formatted --cluster-id $$CLUSTER_ID --config /etc/kafka/kafka.properties
-        fi
+        echo "==> Initialisation du cluster KRaft..."
+        kafka-storage format --ignore-formatted --cluster-id $$(kafka-storage random-uuid) --config /etc/kafka/kafka.properties
         echo "==> Lancement de Kafka..."
         exec /etc/confluent/docker/run
+
     volumes:
       - ./docker/kafka-data:/var/lib/kafka/data
 
