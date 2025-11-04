@@ -1,22 +1,28 @@
 services:
+# Service Kafka
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: kafka
     ports:
       - "9092:9092"
-    environment:
+    environment: # Configuration du mode KRaft
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Facteurs de réplication des logs internes
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_LOG_DIRS: /var/lib/kafka/data
+      # Autorise la création automatique des topics
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      # Mémoire allouée à Kafka
       KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+
+    # Commande de démarrage : initialise et lance Kafka
     command:
       - bash
       - -c
@@ -29,9 +35,10 @@ services:
         fi
         echo "==> Lancement de Kafka..."
         exec /etc/confluent/docker/run
-    volumes:
+    volumes:  # Volume pour persister les données Kafka
       - ./docker/kafka-data:/var/lib/kafka/data
 
+  #Service postgreSQL
   postgres:
     image: postgres:15
     container_name: postgres
@@ -44,6 +51,7 @@ services:
     volumes:
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
 
+# Service App — le producer et le consumer (Python)
   app:
     build:
       context: .
@@ -52,15 +60,53 @@ services:
     depends_on:
       - kafka
       - postgres
+      - namenode
+
+    # Volumes synchronisés avec le projet local
     volumes:
       - "./producer:/app/producer"
       - "./consumer:/app/consumer"
-    environment:
+      - "./etl:/app/etl"
+    environment: # Variables d’environnement pour la connexion
       - KAFKA_BROKER=kafka:9092
       - POSTGRES_HOST=postgres
       - POSTGRES_DB=datapipeline
       - POSTGRES_USER=admin
       - POSTGRES_PASSWORD=admin
 
+  
+# Hadoop - HDFS
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: always
+    environment:
+      - CLUSTER_NAME=hadoop-cluster
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - HDFS_CONF_dfs_replication=1
+      - HDFS_CONF_dfs_permissions_enabled=false
+    volumes:
+      - ./hadoop/namenode:/hadoop/dfs/name
+    ports:
+      - "9870:9870"  # interface web du NameNode
+      - "9000:9000"  # port HDFS principal
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: always
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - HDFS_CONF_dfs_datanode_data_dir=file:///hadoop/dfs/data
+    volumes:
+      - ./hadoop/datanode:/hadoop/dfs/data
+    ports:
+      - "9864:9864"  # interface web du DataNode
+    depends_on:
+      - namenode
+
+# Volumes persistants
 volumes:
   kafka_data:
+  namenode:
+  datanode:

@@ -8,7 +8,7 @@ from tqdm import tqdm
 # CONFIG KAFKA
 # ---------------------------
 KAFKA_SERVER = "kafka:9092"  # car le script tourne dans le container
-TOPIC_ARTISTS = "artists"
+TOPIC_ARTISTS = "artists" # on met les noms des topics
 TOPIC_ALBUMS = "albums"
 TOPIC_TRACKS = "tracks"
 
@@ -19,10 +19,10 @@ producer = KafkaProducer(
 )
 
 # ---------------------------
-# 1️⃣ Récupérer les artistes d'un genre
+# On récupère les artistes d'un genre
 # ---------------------------
 genre_id = 165  # Afrobeat
-artists_list = []
+artists_list = [] # On crée une liste d'artistes
 
 url = f"https://api.deezer.com/genre/{genre_id}/artists"
 while url:
@@ -36,11 +36,11 @@ while url:
         artists_list.append(artist_data)
         producer.send(TOPIC_ARTISTS, value=artist_data)
         time.sleep(0.1)
-    url = data.get("next")
-print(f"✅ {len(artists_list)} artistes envoyés dans Kafka")
+    url = data.get("next") # gestion de la pagination
+print(f"{len(artists_list)} artistes envoyés dans Kafka")
 
 # ---------------------------
-# 2️⃣ Récupérer les albums de ces artistes
+# On récupère les albums de ces artistes
 # ---------------------------
 albums_list = []
 
@@ -61,12 +61,12 @@ for artist in tqdm(artists_list, desc="Albums"):
             }
             albums_list.append(album_data)
             producer.send(TOPIC_ALBUMS, value=album_data)
-        url = data.get("next")
+        url = data.get("next") 
         time.sleep(0.1)
-print(f"✅ {len(albums_list)} albums envoyés dans Kafka")
+print(f"{len(albums_list)} albums envoyés dans Kafka")
 
 # ---------------------------
-# 3️⃣ Récupérer les tracks de ces albums
+# On récupère les tracks de ces albums
 # ---------------------------
 tracks_list = []
 
@@ -87,10 +87,10 @@ for album in tqdm(albums_list, desc="Tracks"):
             producer.send(TOPIC_TRACKS, value=track_data)
         url = data.get("next")
         time.sleep(0.1)
-print(f"✅ {len(tracks_list)} tracks envoyés dans Kafka")
+print(f"{len(tracks_list)} tracks envoyés dans Kafka")
 
 # ---------------------------
-# Fin
+# Envoi des données par le producer
 # ---------------------------
 producer.flush()
-print("Toutes les données ont été envoyées dans Kafka !")
+print("Toutes les données ont été envoyées dans Kafka")
