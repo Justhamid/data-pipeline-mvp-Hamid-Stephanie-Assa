@@ -1,3 +1,4 @@
+package jobs;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
@@ -8,7 +9,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 public class AlbumPerformanceJob {
     public static void main(String[] args) throws Exception {
-        if (args.length != 2) {
+        if (args.length != 5) {
             System.err.println("Usage: AlbumPerformanceJob <input path> <output path>");
             System.exit(-1);
         }

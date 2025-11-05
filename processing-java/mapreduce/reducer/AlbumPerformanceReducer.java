@@ -1,3 +1,4 @@
+package reducer;
 import java.io.IOException;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
