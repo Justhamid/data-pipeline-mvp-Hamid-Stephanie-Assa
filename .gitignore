@@ -1,1 +1,19 @@
+docker/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# OS / IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Données Docker / Kafka / volumes
+docker/kafka-data/
+
+# Data locales
 .env
+docker/kafka-data/

@@ -1,15 +1,17 @@
-# Image de base Python légère
-FROM python:3.10-slim
+# Image Python légère
+FROM python:3.11-slim
 
-# Définit le répertoire de travail dans le conteneur
+# Dossier de travail dans le conteneur
 WORKDIR /app
 
-# Copie les répertoires producer et consumer dans le conteneur
-COPY ./producer /app/producer
-COPY ./consumer /app/consumer
+# Copie le fichier requirements.txt
+COPY requirements.txt .
 
-# Installe les dépendances nécessaires pour Kafka, PostgreSQL et variables d'environnement
-RUN pip install kafka-python psycopg2-binary python-dotenv
+# Installe les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Garde le conteneur actif (à modifier plus tard quand on exécutera ton producer/consumer)
-CMD ["tail", "-f", "/dev/null"]
+# Copie le code source
+COPY producer/ ./producer/
+COPY consumer/ ./consumer/
+
+# Pas de CMD ici : chaque service (producer, consumer) le définit dans docker-compose

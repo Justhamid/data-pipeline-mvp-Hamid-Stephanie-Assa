@@ -1,0 +1,122 @@
+# ===============================
+# Docker Compose
+# ===============================
+
+services:
+  # ===============================
+  # Service 1 : Kafka (Broker de messages)
+  # ===============================
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # --- KRaft (sans ZooKeeper)
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # --- ID de cluster KRaft (EXIGÉ par Confluent)
+      CLUSTER_ID: "4L6g3nShT-eMCtKqZ3zF2A"   # <= garder ce nom de variable
+
+      # --- Réglages locaux
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_HEAP_OPTS: "-Xms512m -Xmx1g"
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - ./kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server kafka:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 8s
+      retries: 20
+      start_period: 20s
+    restart: unless-stopped
+
+  # ===============================
+  # Service 2 : PostgreSQL (Base de données)
+  # ===============================
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    env_file:
+      - ./.env
+    environment:
+      POSTGRES_DB: datapipeline
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ../db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d datapipeline"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  # ===============================
+  # Service 3 : Producer (génère et envoie des messages Kafka)
+  # ===============================
+  producer:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC: deezer_tracks
+    command: python -u producer/producer.py
+    volumes:
+      - ../producer:/app/producer:ro
+      - ../consumer:/app/consumer:ro
+    restart: unless-stopped
+
+  # ===============================
+  # Service 4 : Consumer (lit Kafka et écrit dans PostgreSQL)
+  # ===============================
+  consumer:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    env_file:
+      - ./.env
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      TOPIC: deezer_tracks
+      PGHOST: postgres
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: datapipeline
+      PGPORT: 5432
+    command: python -u consumer/consumer.py
+    volumes:
+      - ../producer:/app/producer:ro
+      - ../consumer:/app/consumer:ro
+    restart: unless-stopped
+
+# ===============================
+# Volumes persistants
+# ===============================
+volumes:
+  pgdata:

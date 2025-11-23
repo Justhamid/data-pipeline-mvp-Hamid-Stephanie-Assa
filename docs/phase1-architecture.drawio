@@ -1,0 +1,49 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36" version="28.2.9">
+  <diagram name="Phase 1 - MVP" id="rSGAKc-8F3qGwRPV5b8x">
+    <mxGraphModel dx="1869" dy="535" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="kLr23s14ZLehFtNV7tLo-1" value="Pipeline Phase 1 — Deezer → Kafka → PostgreSQL" style="text;html=1;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;align=center" parent="1" vertex="1">
+          <mxGeometry x="80" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-2" value="API Deezer&#xa;(HTTP JSON)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=14" parent="1" vertex="1">
+          <mxGeometry x="-40" y="130" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-3" value="Producer (Python, Docker)&#xa;Container: producer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=14" parent="1" vertex="1">
+          <mxGeometry x="180" y="130" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-4" value="Kafka Broker&#xa;Topic: deezer_tracks&#xa;Port: 9092" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=14" parent="1" vertex="1">
+          <mxGeometry x="440" y="120" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-5" value="Consumer (Python, Docker)&#xa;Container: consumer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14" parent="1" vertex="1">
+          <mxGeometry x="700" y="130" width="240" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-6" value="PostgreSQL&#xa;DB: datapipeline&#xa;Port: 5432" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=14" parent="1" vertex="1">
+          <mxGeometry x="980" y="130" width="220" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-7" value="DBeaver (client SQL)&#xa;Connexion: localhost:5432" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=14;dashed=1;" parent="1" vertex="1">
+          <mxGeometry x="980" y="300" width="220" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-8" value="HTTP (JSON)" style="endArrow=block;endFill=1;strokeColor=#6c8ebf;fontSize=12" parent="1" source="kLr23s14ZLehFtNV7tLo-2" target="kLr23s14ZLehFtNV7tLo-3" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-9" value="Kafka messages" style="endArrow=block;endFill=1;strokeColor=#82b366;fontSize=12" parent="1" source="kLr23s14ZLehFtNV7tLo-3" target="kLr23s14ZLehFtNV7tLo-4" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-10" value="Kafka messages" style="endArrow=block;endFill=1;strokeColor=#d6b656;fontSize=12" parent="1" source="kLr23s14ZLehFtNV7tLo-4" target="kLr23s14ZLehFtNV7tLo-5" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-11" value="INSERT / UPSERT (SQL)" style="endArrow=block;endFill=1;strokeColor=#b85450;fontSize=12" parent="1" source="kLr23s14ZLehFtNV7tLo-5" target="kLr23s14ZLehFtNV7tLo-6" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-12" value="Lecture SQL" style="endArrow=block;endFill=1;strokeColor=#9673a6;fontSize=12" parent="1" source="kLr23s14ZLehFtNV7tLo-7" target="kLr23s14ZLehFtNV7tLo-6" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="kLr23s14ZLehFtNV7tLo-13" value="Notes :&lt;br&gt;• Tous les composants Producer/Kafka/Consumer/PostgreSQL sont sur docker.&lt;br&gt;• Le Consumer on fait des INSERT pour les doublans (ON CONFLICT).&lt;br&gt;• DBeaver sert à vérifier et interroger les données." style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#b3b3b3;fontSize=12" parent="1" vertex="1">
+          <mxGeometry x="-40" y="260" width="680" height="120" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

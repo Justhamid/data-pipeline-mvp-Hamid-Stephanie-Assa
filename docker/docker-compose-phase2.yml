@@ -1,0 +1,107 @@
+version: "3.8"
+
+services:
+  # -------------------------
+  # HADOOP HDFS + YARN
+  # -------------------------
+  namenode:
+    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    container_name: namenode
+    restart: unless-stopped
+    environment:
+      - CLUSTER_NAME=deezer-pipeline
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+    ports:
+      - "9870:9870"   # UI HDFS
+      - "9000:9000"   # RPC HDFS
+    volumes:
+      - nn:/hadoop/dfs/name
+      # On monte le jar de la Phase 2 pour lancer les jobs à l’intérieur
+      - ./processing-java/target:/opt/app
+
+  datanode:
+    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    container_name: datanode
+    restart: unless-stopped
+    environment:
+      - CLUSTER_NAME=deezer-pipeline
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check=false
+      - SERVICE_PRECONDITION=namenode:9870
+    ports:
+      - "9864:9864"
+    volumes:
+      - dn:/hadoop/dfs/data
+
+  resourcemanager:
+    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
+    container_name: resourcemanager
+    restart: unless-stopped
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864
+    ports:
+      - "8088:8088"   # UI YARN
+
+  nodemanager:
+    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
+    container_name: nodemanager
+    restart: unless-stopped
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
+
+  historyserver:
+    image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
+    container_name: historyserver
+    restart: unless-stopped
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
+      - SERVICE_PRECONDITION=namenode:9000 namenode:9870 datanode:9864 resourcemanager:8088
+    volumes:
+      - hs:/hadoop/yarn/timeline
+    ports:
+      - "8188:8188"
+
+  # -------------------------
+  # HIVE (Metastore + Serveur)
+  # -------------------------
+  hive-metastore-postgresql:
+    image: bde2020/hive-metastore-postgresql:2.3.0
+    container_name: hive-metastore-postgresql
+    restart: unless-stopped
+
+  hive-metastore:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-metastore
+    depends_on:
+      - namenode
+      - datanode
+      - hive-metastore-postgresql
+    env_file:
+      - ./hadoop-hive.env
+    command: /opt/hive/bin/hive --service metastore
+    environment:
+      - SERVICE_PRECONDITION=namenode:9870 datanode:9864 hive-metastore-postgresql:5432
+    ports:
+      - "9083:9083"
+
+  hive-server:
+    image: bde2020/hive:2.3.2-postgresql-metastore
+    container_name: hive-server
+    depends_on:
+      - hive-metastore
+    env_file:
+      - ./hadoop-hive.env
+    environment:
+      - SERVICE_PRECONDITION=hive-metastore:9083
+      # On pourra monter des données dans /my-data si besoin
+    ports:
+      - "10000:10000"   # JDBC HiveServer2
+
+volumes:
+  nn:
+  dn:
+  hs:
