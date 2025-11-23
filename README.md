@@ -1,169 +1,227 @@
-Data Pipeline MVP — Deezer → Kafka → PostgreSQL (Docker)
+📘 Data Pipeline MVP – Hamid / Stéphanie / Assaa
 
-Un mini-pipeline de données prêt à l’emploi pour collecter des métriques Deezer via API, les diffuser dans Kafka, et les stocker dans PostgreSQL pour analyse (DBeaver, SQL, etc.).
-Le tout est dockerisé, avec un producer (ingestion API → Kafka) et un consumer (Kafka → Postgres).
+Projet Ynov visant à construire un pipeline de données complet incluant ingestion en streaming, stockage, export big data, traitement MapReduce et analyse via Hive.
 
-⚙️ Stack
+🏗️ Architecture du pipeline
+📌 Architecture Phase 1 (Kafka → Consumer → PostgreSQL)
+Producer (Kafka) --> Kafka Broker --> Consumer Python --> PostgreSQL
 
-Docker & Docker Compose
+Description
 
-Kafka (Confluent image en mode KRaft, sans ZooKeeper)
+Le Producer génère des événements musicaux (tracks, genres, artistes…)
 
-PostgreSQL 15
+Kafka sert de bus de streaming
 
-Python 3.11 (producer + consumer)
+Le Consumer lit les messages et les insère dans PostgreSQL
 
-DBeaver (facultatif, pour visualiser la BDD)
+PostgreSQL centralise les données brutes structurées
 
-🧱 Architecture
-        +--------------------+
-        |    Deezer API      |
-        +---------+----------+
-                  |
-                  | (HTTP)
-                  v
-        +---------+----------+
-        |     Producer       |  Python
-        |  (requests → KFK)  |
-        +---------+----------+
-                  |
-                  | (Kafka topic: deezer_tracks, etc.)
-                  v
-        +---------+----------+         +----------------------+
-        |       Kafka        |         |     PostgreSQL       |
-        | (broker/controller)|  --->   |   schema init.sql    |
-        +---------+----------+         +----------+-----------+
-                  ^                                 ^
-                  |                                 |
-                  | (KafkaConsumer)                 | (psycopg2)
-                  +-------------+-------------------+
-                                |
-                                v
-                         +------+------+
-                         |   Consumer  |
-                         | (KFK → PG)  |
-                         +-------------+
+📌 Architecture Phase 2 (PostgreSQL → HDFS → MapReduce → Hive)
+PostgreSQL --> Java Export --> HDFS --> MapReduce --> Output HDFS --> Hive
 
-📁 Structure du repo (résumé)
-.
-├─ docker/
-│  ├─ docker-compose.yml
-│  └─ ... (volumes: kafka-data/, pgdata/)
-├─ db/
-│  └─ init.sql               # crée les tables, indexes, vues matérialisées (si activées)
-├─ producer/
-│  └─ producer.py            # collecte Deezer, envoie sur Kafka (JSON)
-├─ consumer/
-│  └─ consumer.py            # consomme Kafka, upsert dans Postgres
-├─ requirements.txt          # deps Python (producer + consumer)
-├─ Dockerfile                # image Python commune
-├─ .env                      # variables (tu le crées chez toi)
-└─ README.md                 # ce fichier
+Description
 
-🧩 Modèle de données (tables principales)
+Java exporte une requête SQL vers HDFS (TSV)
 
-artists(artist_id PK, name, link, nb_fan, nb_album, ... )
+Un job MapReduce calcule le Top Tracks par genre
 
-albums(album_id PK, title, upc, release_date, artist_id FK, ...)
+Hive lit:
 
-tracks(track_id PK, title, duration, rank, explicit_lyrics, album_id FK, artist_id FK, ...)
+les données d’entrée
 
-genres(genre_id PK, name, ... )
+les résultats MapReduce
 
-chart_snapshots(snapshot_time, source, genre_norm, artist_norm, track_id, position, ... )
+📂 Structure du projet
+DATA-PIPELINE-MVP/
 
-Contrainte d’unicité pour éviter les doublons exacts par (temps, source, genre/artiste normalisés, track_id)
+├── Dockerfile
+├── requirements.txt
+│ 
+├── consumer/
+│   └── consumer.py
+├── producer/
+│   └── producer.py
+│   
+│
+├── db/
+│   └── init.sql
+│
+├── docker/
+│   ├── docker-compose.yml
+│   ├── docker-compose-phase2.yml
+│   ├── hadoop-hive.env
+│   └── processing-java/
+│       ├── pom.xml
+│       └── src/main/java/com/ynov/pipeline/
+│           ├── ExportToHdfs.java
+│           ├── GenreTopTracksJob.java
+│           ├── GenreTopTracksMapper.java
+│           └── GenreTopTracksReducer.java
+│
+└── docs/
+    ├── architecture.drawio
+    ├── phase1-architecture.drawio
+    └── phase1-architecture.drawio.png
 
-Des vues matérialisées (ex. mv_latest_chart, mv_daily_rank) peuvent être prévues dans init.sql (désactivables).
+🗃️ Tables PostgreSQL – Description complète
 
-🔐 Variables d’environnement (.env)
+Voici les tables créées dans init.sql, avec leur rôle fonctionnel.
 
-Crée un fichier .env à la racine (jamais commité) :
+1. genres
 
-# Postgres
-POSTGRES_USER=Projet_MVP2025
-POSTGRES_PASSWORD=Ynov2025
+Représente les genres musicaux.
 
-# Producer / Consumer
-KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-TOPIC=deezer_tracks
+Colonne	Type	Description
+genre_id	SERIAL PK	Identifiant unique du genre
+name	TEXT	Nom du genre (ex: Pop, Rap, Jazz)
 
-# (optionnel) Tweaks producteur
-BATCH_PAGE_LIMIT=100       # Nb max d’items/page à collecter
-SLEEP_BETWEEN_CALLS=10     # secondes entre cycles
+🎯 Rôle : Dictionnaire des genres utilisés partout dans le pipeline.
 
-# (optionnel) Tweaks consumer
-MAX_WORKERS=4              # parallélisation inserts (si implémenté)
+2. artists
 
-🚀 Lancement rapide
+Représente les artistes associés aux morceaux.
 
-Docker up (depuis docker/)
+Colonne	Type	Description
+artist_id	SERIAL PK	Identifiant de l'artiste
+name	TEXT	Nom de l'artiste
 
-docker compose up -d --build
+🎯 Rôle : Dictionnaire des artistes, lié aux tracks.
+
+3. tracks
+
+Représente les morceaux musicaux.
+
+Colonne	Type	Description
+track_id	SERIAL PK	Identifiant du morceau
+artist_id	INT FK	Référence à artists.artist_id
+title	TEXT	Titre du morceau
+
+🎯 Rôle : Ensemble des morceaux pouvant apparaître dans les classements.
+
+4. chart_snapshots
+
+Représente l’évolution d’un classement (ranking) dans le temps.
+
+Colonne	Type	Description
+snapshot_id	SERIAL PK	Identifiant du snapshot
+snapshot_time	TIMESTAMP	Date du classement
+track_id	INT FK	Référence au morceau classé
+ref_genre_id	INT FK	Référence au genre
+position	INT	Classement (1 = meilleur score)
+
+🎯 Rôle :
+
+Stocke les classements temporels
+
+Données principales pour MapReduce
+
+Utilisé dans l’export Postgres → HDFS
+
+🚀 Lancer le pipeline
+1️⃣ Phase 1 – Kafka → PostgreSQL
+
+Dans docker/ :
+
+docker compose up --build
 
 
-Vérifier les logs
+Kafka + Postgres + Producer + Consumer démarrent.
 
-docker compose logs -f kafka
-docker compose logs -f postgres
-docker compose logs -f producer
-docker compose logs -f consumer
+Pour vérifier les données :
+
+docker exec -it postgres psql -U Projet_MVP2025 datapipeline
+SELECT * FROM tracks LIMIT 10;
+
+2️⃣ Phase 2 – Hadoop, Hive, MapReduce
+
+Démarrer Hadoop + Hive :
+
+docker compose -f docker-compose-phase2.yml up --build
+
+📌 Build du Java (Export + MapReduce)
+
+Tu dois utiliser Maven dans un conteneur :
+
+cd docker/processing-java
+WINPATH=$(pwd -W)
+
+docker run --rm -it \
+  -v "$WINPATH":/app \
+  -w /app \
+  maven:3.9.6-eclipse-temurin-11 \
+  mvn clean package
 
 
-Se connecter avec DBeaver
+JAR généré :
 
-Host: localhost
+target/processing-java-1.0.0.jar
 
-Port: 5432
+📌 Export PostgreSQL → HDFS
 
-Database: datapipeline
+Entrer dans le NameNode :
 
-User: Projet_MVP2025
+docker exec -it namenode bash
 
-Password: Ynov2025
 
-Tester quelques requêtes
+Exécuter l'export :
 
--- Combien de lignes par table ?
-SELECT 'artists' AS t, COUNT(*) FROM artists
-UNION ALL SELECT 'albums', COUNT(*) FROM albums
-UNION ALL SELECT 'tracks', COUNT(*) FROM tracks
-UNION ALL SELECT 'genres', COUNT(*) FROM genres
-UNION ALL SELECT 'chart_snapshots', COUNT(*) FROM chart_snapshots;
+hadoop jar /opt/app/processing-java-1.0.0.jar com.ynov.pipeline.ExportToHdfs
 
--- Derniers snapshots
-SELECT snapshot_time, source, track_id, position
-FROM chart_snapshots
-ORDER BY snapshot_time DESC
-LIMIT 20;
 
-🛠️ Commandes utiles
-# reconstruire et relancer
-docker compose up -d --build
+Sortie attendue :
 
-# suivre les logs en live
-docker compose logs -f producer
-docker compose logs -f consumer
-docker compose logs -f kafka
-docker compose logs -f postgres
+[ExportToHdfs] Exported rows = 5000
 
-# psql dans le conteneur
-docker exec -it postgres psql -U $POSTGRES_USER -d datapipeline
+📌 Lancer le Job MapReduce
 
-# arrêter
-docker compose down
+Toujours dans le NameNode :
 
-# tout réinitialiser (⚠️ supprime les données Kafka & PG)
-docker compose down -v
-rm -rf docker/kafka-data
-# (et le volume nommé pgdata est supprimé par -v)
+hadoop jar /opt/app/processing-java-1.0.0.jar com.ynov.pipeline.GenreTopTracksJob
 
-🔧 Paramétrage & perfs
 
-Limites API Deezer : on collecte par pages (jusqu’à BATCH_PAGE_LIMIT), et on boucle par endpoints riches (charts, top artist, genres) pour maximiser la variété.
+Résultats dans HDFS :
 
-Déduplication : côté consumer, on fait des INSERT ... ON CONFLICT DO UPDATE/DO NOTHING selon la table.
+hdfs dfs -ls /data/phase2/output/
 
-Historique : chart_snapshots enregistre le temps (snapshot_time), la source (global/genre/artist_top), la position et le track_id.
+📌 Consulter dans Hive
+docker exec -it hive-server bash
+beeline -u jdbc:hive2://localhost:10000/default
 
-Offsets Kafka : auto_offset_reset="earliest" garantit qu’au premier lancement on consomme l’historique du topic.
+
+Créer table d’entrée :
+
+CREATE EXTERNAL TABLE genre_tracks (
+  genre_id INT,
+  genre_name STRING,
+  track_id INT,
+  title STRING,
+  artist_name STRING,
+  rank INT
+)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t'
+LOCATION '/data/phase2/input/';
+
+🛠️ Technologies utilisées
+
+Kafka
+
+Python (Producer + Consumer)
+
+PostgreSQL
+
+Hadoop (HDFS, YARN, MapReduce)
+
+Java 11 — Maven
+
+Hive
+
+Docker & docker-compose
+
+👤 Auteurs
+
+Abdelhamid Belhadj Kacem
+
+Stéphanie
+
+Assaa
+Projet réalisé dans le cadre du Mastère Data Engineering – Ynov Campus Lyon
